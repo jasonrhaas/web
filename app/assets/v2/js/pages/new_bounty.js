@@ -135,19 +135,9 @@ $(document).ready(function(){
         var token_contract = web3.eth.contract(token_abi).at(tokenAddress);
         var account = web3.eth.coinbase;
         amount = amount * decimalDivisor;
-        // Create the bounty object.
-        // This function instantiates a contract from the existing deployed Standard Bounties Contract.
-        // bounty_abi is a giant object containing the different network options
-        // bounty_address() is a function that looks up the name of the network and returns the hash code
-        var bounty = web3.eth.contract(bounty_abi).at(bounty_address());
-        console.log(bounty)
+
         // StandardBounties integration begins here
         var expire_date = (parseInt(expirationTimeDelta) + (new Date().getTime()/1000|0) );
-        // Set up Interplanetary file storage
-        // IpfsApi is defined in the ipfs-api.js.
-        // Is it better to use this JS file than the node package?  github.com/ipfs/
-        ipfs.ipfsApi = IpfsApi({host: 'ipfs.infura.io', port: '5001', protocol: "https", root:'/api/v0'});
-        ipfs.setProvider({ host: 'ipfs.infura.io', port: 5001, protocol: 'https', root:'/api/v0'});
 
         var submit = {
           title: metadata['issueTitle'],

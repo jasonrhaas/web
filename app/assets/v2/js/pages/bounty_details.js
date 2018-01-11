@@ -216,8 +216,6 @@ var pendingChangesWarning = function(issueURL, last_modified_time_remote, now){
             var transactionInfo;
             var bountiesLength;
             var bountyId;
-            // var bounty = web3.eth.contract(bounty_abi).at(bounty_address());
-            var bounty = web3.eth.contract(bounty_abi).at(bounty_address());  //hardcode to test
 
             bounty.getNumBounties(function(error, result){
                 console.log("Callback is now running...");

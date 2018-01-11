@@ -58,3 +58,9 @@ var gasLimitMultiplier = 4;
 var gasMultiplier = 1.3;
 var defaultGasPrice = 10**9 * 5; //5 gwei
 var weiPerEther = 10**18;
+
+// Create the bounty object.
+// This function instantiates a contract from the existing deployed Standard Bounties Contract.
+// bounty_abi is a giant object containing the different network options
+// bounty_address() is a function that looks up the name of the network and returns the hash code
+var bounty = web3.eth.contract(bounty_abi).at(bounty_address());
