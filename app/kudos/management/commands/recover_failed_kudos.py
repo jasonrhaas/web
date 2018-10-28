@@ -18,8 +18,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import logging
 import time
-import urllib
-import time
 import warnings
 
 from django.conf import settings
@@ -27,7 +25,6 @@ from django.core.management.base import BaseCommand
 
 import redis
 import oyaml as yaml
-from kudos.utils import KudosContract, get_rarity_score, humanize_name
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -35,27 +32,26 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("web3").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
-formatter = '%(levelname)s:%(name)s.%(funcName)s:%(message)s'
 
 
 class Command(BaseCommand):
 
     help = 'mints the initial kudos gen0 set'
+    redis_conn = redis.StrictRedis(host='redis', port=6379, db=9, decode_responses=True)
 
     def add_arguments(self, parser):
-        # parser.add_argument('network', default='localhost', type=str)
-        parser.add_argument('redis_run_id', type=str)
+        run_id = self.redis_conn.get('run_id')
+        parser.add_argument('-r', '--redis_run_id', default=run_id, type=str)
 
     def handle(self, *args, **options):
-        # network = options['network']
         redis_run_id = options['redis_run_id']
-        redis_conn = redis.StrictRedis(host='redis', port=6379, db=9, decode_responses=True)
+
         path = 'kudos'
         yaml_file = f'{path}/kudos.yaml'
         with open(yaml_file) as f:
             all_kudos = yaml.load(f)
 
-        failed_kudos_names = redis_conn.lrange(redis_run_id, 0, -1)
+        failed_kudos_names = self.redis_conn.lrange(f'fail:{redis_run_id}', 0, -1)
 
         if not failed_kudos_names:
             print(f'No failed kudos were found for {redis_run_id}')
@@ -71,4 +67,4 @@ class Command(BaseCommand):
             f.write(yaml.dump(failed_kudos, default_flow_style=False))
 
         print(f'Recovery file written to {outfile}')
-        redis_conn.delete(redis_run_id)
+        # self.redis_conn.delete(f'fail:{redis_run_id}')
