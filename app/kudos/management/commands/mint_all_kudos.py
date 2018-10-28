@@ -19,11 +19,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import logging
 import time
 import urllib
+import time
 import warnings
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+import redis
 import oyaml as yaml
 from kudos.utils import KudosContract, get_rarity_score, humanize_name
 
@@ -53,6 +55,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # config
+        redis_run_id = str(time.time_ns())
+        print(f'redis_run_id: {redis_run_id}')
+        redis_conn = redis.StrictRedis(host='redis', port=6379, db=9, decode_responses=True)
+
         if options['debug']:
             logging.basicConfig(level=logging.DEBUG)
         else:
@@ -76,19 +82,19 @@ class Command(BaseCommand):
         with open(yaml_file) as f:
             all_kudos = yaml.load(f)
 
-        for __, kudos in enumerate(all_kudos):
+        for idx, kudos in enumerate(all_kudos):
             image_name = urllib.parse.quote(kudos.get('image'))
             if image_name:
                 # Support Open Sea
                 if kudos_contract.network == 'rinkeby':
                     image_path = f'https://ss.gitcoin.co/static/v2/images/kudos/{image_name}'
-                    external_url = f'https://stage.gitcoin.co/kudos/{kudos_contract.address}/{kudos_contract.getLatestId() + 1}'
+                    external_url = f'https://stage.gitcoin.co/kudos/{kudos_contract.address}/'
                 elif kudos_contract.network == 'mainnet':
                     image_path = f'https://s.gitcoin.co/static/v2/images/kudos/{image_name}'
-                    external_url = f'https://gitcoin.co/kudos/{kudos_contract.address}/{kudos_contract.getLatestId() + 1}'
+                    external_url = f'https://gitcoin.co/kudos/{kudos_contract.address}/'
                 elif kudos_contract.network == 'localhost':
                     image_path = f'v2/images/kudos/{image_name}'
-                    external_url = f'http://localhost:8000/kudos/{kudos_contract.address}/{kudos_contract.getLatestId() + 1}'
+                    external_url = f'http://localhost:8000/kudos/{kudos_contract.address}/'
                 else:
                     raise RuntimeError('Need to set the image path for that network')
             else:
@@ -147,20 +153,23 @@ class Command(BaseCommand):
             else:
                 mint_to = kudos_contract._w3.toChecksumAddress(options['mint_to'])
 
-            for __ in range(1, 4):
-                try:
-                    token_uri_url = kudos_contract.create_token_uri_url(**metadata)
-                    args = (mint_to, kudos['priceFinney'], kudos['numClonesAllowed'], token_uri_url)
-                    kudos_contract.mint(
-                        *args,
-                        account=account,
-                        private_key=private_key,
-                        skip_sync=skip_sync,
-                        gas_price_gwei=gas_price_gwei,
-                    )
-                except Exception as e:
-                    logger.error('Error: %s - Trying to mint again' % e)
-                    time.sleep(2)
-                    continue
-                else:
-                    break
+            try:
+                raise
+                tokenURI_url = kudos_contract.create_token_uri_url(**metadata)
+                args = (mint_to, kudos['priceFinney'], kudos['numClonesAllowed'], tokenURI_url)
+                kudos_contract.mint(
+                    *args,
+                    account=account,
+                    private_key=private_key,
+                    skip_sync=skip_sync,
+                    gas_price_gwei=gas_price_gwei,
+                )
+            except Exception as e:
+                logger.error('Error: %s' % e)
+                logger.warning(f'{kudos["name"]} failed to mint.  Saving and moving on...')
+                redis_conn.rpush(f'{redis_run_id}', kudos['name'])
+
+        num_failed = redis_conn.llen(f'{redis_run_id}')
+        if num_failed != 0:
+            print(f'There were {num_failed} kudos that failed.')
+            print(f'Run `python manage.py recover_failed_kudos {redis_run_id}` to generate a recovery file.')
