@@ -154,7 +154,6 @@ class Command(BaseCommand):
                 mint_to = kudos_contract._w3.toChecksumAddress(options['mint_to'])
 
             try:
-                raise
                 tokenURI_url = kudos_contract.create_token_uri_url(**metadata)
                 args = (mint_to, kudos['priceFinney'], kudos['numClonesAllowed'], tokenURI_url)
                 kudos_contract.mint(
