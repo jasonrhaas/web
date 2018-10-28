@@ -155,8 +155,6 @@ class Command(BaseCommand):
                 mint_to = kudos_contract._w3.toChecksumAddress(options['mint_to'])
 
             try:
-                if idx % 3:
-                    raise
                 tokenURI_url = kudos_contract.create_token_uri_url(**metadata)
                 args = (mint_to, kudos['priceFinney'], kudos['numClonesAllowed'], tokenURI_url)
                 kudos_contract.mint(
@@ -167,8 +165,8 @@ class Command(BaseCommand):
                     gas_price_gwei=gas_price_gwei,
                 )
             except Exception as e:
-                logger.error('Error: %s' % e)
-                logger.warning(f'{kudos["name"]} failed to mint.  Saving to redis and moving on...')
+                logger.debug('Error: %s' % e)
+                logger.error(f'{kudos["name"]} failed to mint.  Saving to redis and moving on...')
                 self.redis_conn.rpush(f'fail:{redis_run_id}', kudos['name'])
             else:
                 self.redis_conn.rpush(f'success:{redis_run_id}', kudos['name'])
