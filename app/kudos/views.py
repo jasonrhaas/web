@@ -46,7 +46,7 @@ from web3 import Web3
 
 from .forms import KudosSearchForm
 from .helpers import get_token
-from .models import KudosTransfer, Token
+from .models import KudosTransfer, Token, Contract
 
 logger = logging.getLogger(__name__)
 
@@ -98,22 +98,23 @@ def marketplace(request):
     logger.info(order_by)
     logger.info(q)
     title = q.title() + str(_(" Kudos ")) if q else str(_('Kudos Marketplace'))
-
+    contract = Contract.objects.filter(
+        network=settings.KUDOS_NETWORK,
+        is_latest=True
+    ).first()
     if q:
         listings = Token.objects.annotate(
             search=SearchVector('name', 'description', 'tags')
         ).filter(
             # Only show the latest contract Kudos for the current network
             num_clones_allowed__gt=0,
-            contract__is_latest=True,
-            contract__network=settings.KUDOS_NETWORK,
+            contract=contract,
             search=q
         ).order_by(order_by)
     else:
         listings = Token.objects.filter(
             num_clones_allowed__gt=0,
-            contract__is_latest=True,
-            contract__network=settings.KUDOS_NETWORK,
+            contract=contract
         ).order_by(order_by)
     context = {
         'is_outside': True,
@@ -123,7 +124,8 @@ def marketplace(request):
         'card_desc': _('It can be sent to highlight, recognize, and show appreciation.'),
         'avatar_url': static('v2/images/kudos/assets/kudos-image.png'),
         'listings': listings,
-        'network': settings.KUDOS_NETWORK
+        'network': settings.KUDOS_NETWORK,
+        'contract': contract
     }
 
     return TemplateResponse(request, 'kudos_marketplace.html', context)
